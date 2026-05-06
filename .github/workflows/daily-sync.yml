@@ -20,9 +20,35 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      # Placeholder: will run hack/sync-upstream.sh once it is implemented
       - name: Run upstream sync
+        run: bash hack/sync-upstream.sh
+
+      - name: Regenerate bundles if charts changed
         run: |
-          echo "TODO: bash hack/sync-upstream.sh"
-          echo "This will check for new upstream Crossplane chart releases"
-          echo "for v2.0, v2.1, v2.2 and open a PR if changes are found."
+          if git diff --quiet; then
+            echo "No upstream changes detected."
+            exit 0
+          fi
+          make manifests
+          bash hack/generate-bundle.sh
+
+      - name: Create PR if changes exist
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          BRANCH="chore/sync-upstream-$(date +%Y-%m-%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "${BRANCH}"
+          git add -A
+          git commit -m "chore: sync upstream crossplane charts ($(date +%Y-%m-%d))"
+          git push origin "${BRANCH}"
+          gh pr create \
+            --title "chore: sync upstream crossplane charts ($(date +%Y-%m-%d))" \
+            --body "Automated sync of upstream Crossplane Helm charts. Review vendored chart changes and regenerated bundle manifests." \
+            --base main \
+            --head "${BRANCH}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

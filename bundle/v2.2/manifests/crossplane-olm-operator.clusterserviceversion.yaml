@@ -283,5 +283,8 @@ spec:
   provider:
     name: Community
   version: 2.2.0
-  # TODO: Phase 3 — Finalize relatedImages from Helm chart rendering output
-  relatedImages: []
+  relatedImages:
+  - name: manager
+    image: ghcr.io/gurnben-agent/crossplane-olm-operator:v2.2.0
+  - name: crossplane
+    image: xpkg.crossplane.io/crossplane/crossplane:v2.2.0

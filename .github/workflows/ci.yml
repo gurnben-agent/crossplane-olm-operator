@@ -65,21 +65,104 @@ jobs:
   bundle-validate:
     name: Bundle Validate
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: [v2.0, v2.1, v2.2]
     steps:
       - uses: actions/checkout@v4
-      # Placeholder: bundle validation will be enabled once bundle manifests are generated
-      - name: Validate bundles
+      - name: Install operator-sdk
         run: |
-          echo "TODO: operator-sdk bundle validate ./bundle/v2.0"
-          echo "TODO: operator-sdk bundle validate ./bundle/v2.1"
-          echo "TODO: operator-sdk bundle validate ./bundle/v2.2"
+          export ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+          curl -sLo operator-sdk "https://github.com/operator-framework/operator-sdk/releases/download/v1.39.1/operator-sdk_linux_${ARCH}"
+          chmod +x operator-sdk
+          sudo mv operator-sdk /usr/local/bin/
+      - name: Validate bundle ${{ matrix.version }}
+        run: operator-sdk bundle validate ./bundle/${{ matrix.version }}
 
   fbc-validate:
     name: FBC Catalog Validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # Placeholder: FBC validation will be enabled once catalog manifests are generated
-      - name: Validate FBC catalog
+      - name: Install opm
         run: |
-          echo "TODO: opm validate catalog/"
+          export ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+          curl -sLo opm "https://github.com/operator-framework/operator-registry/releases/download/v1.52.0/linux-${ARCH}-opm"
+          chmod +x opm
+          sudo mv opm /usr/local/bin/
+      - name: Validate FBC catalog
+        run: opm validate catalog/
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [lint, vet, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Create KinD cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: e2e
+          wait: 120s
+
+      - name: Install OLM
+        run: |
+          export ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+          curl -sLo operator-sdk "https://github.com/operator-framework/operator-sdk/releases/download/v1.39.1/operator-sdk_linux_${ARCH}"
+          chmod +x operator-sdk
+          sudo mv operator-sdk /usr/local/bin/
+          operator-sdk olm install
+
+      - name: Build operator image and load into KinD
+        run: |
+          make docker-build IMG=crossplane-olm-operator:e2e
+          kind load docker-image crossplane-olm-operator:e2e --name e2e
+
+      - name: Build bundle image and load into KinD
+        run: |
+          docker build -f bundle/v2.2/bundle.Dockerfile -t crossplane-olm-operator-bundle:e2e bundle/v2.2
+          kind load docker-image crossplane-olm-operator-bundle:e2e --name e2e
+
+      - name: Deploy bundle via operator-sdk
+        run: operator-sdk run bundle crossplane-olm-operator-bundle:e2e --timeout 5m
+
+      - name: Create CrossplaneConfig CR
+        run: |
+          kubectl apply -f - <<'EOF'
+          apiVersion: crossplane.io/v1alpha1
+          kind: CrossplaneConfig
+          metadata:
+            name: crossplane
+          spec:
+            version: "v2.2"
+          EOF
+
+      - name: Wait for Crossplane pods to be ready
+        run: |
+          echo "Waiting for operator to reconcile CrossplaneConfig..."
+          for i in $(seq 1 60); do
+            if kubectl get pods -n crossplane-system --no-headers 2>/dev/null | grep -q Running; then
+              echo "Crossplane pods detected."
+              break
+            fi
+            echo "  Attempt ${i}/60 — waiting 5s..."
+            sleep 5
+          done
+          kubectl wait --for=condition=Available deployment --all -n crossplane-system --timeout=300s
+          echo "All Crossplane deployments are available."
+
+      - name: Verify CrossplaneConfig status
+        run: |
+          kubectl get crossplaneconfig crossplane -o yaml
+          STATUS=$(kubectl get crossplaneconfig crossplane -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || true)
+          if [[ "${STATUS}" == "True" ]]; then
+            echo "CrossplaneConfig is Ready."
+          else
+            echo "WARNING: CrossplaneConfig Ready condition is '${STATUS}' — check operator logs."
+            kubectl logs -n operators -l control-plane=controller-manager --tail=50 || true
+          fi

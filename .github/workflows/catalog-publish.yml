@@ -29,10 +29,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Placeholder: will build and push once catalog Dockerfile and FBC manifests exist
+      - name: Install opm
+        run: |
+          export ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+          curl -sLo opm "https://github.com/operator-framework/operator-registry/releases/download/v1.52.0/linux-${ARCH}-opm"
+          chmod +x opm
+          sudo mv opm /usr/local/bin/
+
+      - name: Validate FBC catalog
+        run: opm validate catalog/
+
       - name: Build and push catalog image
         run: |
           CATALOG_IMG="${REGISTRY}/${ORG}/crossplane-olm-operator-catalog:latest"
-          echo "TODO: docker build -f catalog.Dockerfile -t ${CATALOG_IMG} ."
-          echo "TODO: docker push ${CATALOG_IMG}"
-          echo "Would push: ${CATALOG_IMG}"
+          docker build -f catalog.Dockerfile -t "${CATALOG_IMG}" .
+          docker push "${CATALOG_IMG}"

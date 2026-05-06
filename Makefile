@@ -93,23 +93,35 @@ bundle: manifests kustomize ## Generate OLM bundle manifests
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION)
 	operator-sdk bundle validate ./bundle
 
+.PHONY: bundle-generate
+bundle-generate: manifests ## Regenerate bundle manifests from CRD output
+	bash hack/generate-bundle.sh
+
 .PHONY: bundle-build
-bundle-build: ## Build the OLM bundle image
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+bundle-build: ## Build OLM bundle images for all versions
+	@for ver in v2.0 v2.1 v2.2; do \
+		echo "Building bundle image for $${ver}..."; \
+		docker build -f bundle/$${ver}/bundle.Dockerfile -t $(BUNDLE_IMG)-$${ver} bundle/$${ver}; \
+	done
 
 .PHONY: bundle-push
-bundle-push: ## Push the OLM bundle image
-	docker push $(BUNDLE_IMG)
+bundle-push: ## Push OLM bundle images for all versions
+	@for ver in v2.0 v2.1 v2.2; do \
+		echo "Pushing bundle image for $${ver}..."; \
+		docker push $(BUNDLE_IMG)-$${ver}; \
+	done
 
 .PHONY: bundle-validate
-bundle-validate: ## Validate the OLM bundle
-	operator-sdk bundle validate ./bundle
+bundle-validate: ## Validate all OLM bundles
+	@for ver in v2.0 v2.1 v2.2; do \
+		echo "Validating bundle $${ver}..."; \
+		operator-sdk bundle validate ./bundle/$${ver}; \
+	done
 
 ##@ Catalog
 
 .PHONY: catalog-build
 catalog-build: ## Build the FBC catalog image
-	opm alpha render-template basic -o yaml < catalog/crossplane-olm-operator/catalog.yaml > catalog/crossplane-olm-operator/rendered.yaml || true
 	docker build -f catalog.Dockerfile -t $(CATALOG_IMG) .
 
 .PHONY: catalog-push
@@ -119,6 +131,32 @@ catalog-push: ## Push the FBC catalog image
 .PHONY: catalog-validate
 catalog-validate: ## Validate the FBC catalog
 	opm validate catalog/
+
+##@ E2E
+
+.PHONY: e2e
+e2e: docker-build ## Run e2e tests against a KinD cluster with OLM
+	@echo "Creating KinD cluster..."
+	kind create cluster --name e2e --wait 120s || true
+	kind load docker-image $(IMG) --name e2e
+	@echo "Installing OLM..."
+	operator-sdk olm install || true
+	@echo "Building and loading bundle image..."
+	docker build -f bundle/v2.2/bundle.Dockerfile -t crossplane-olm-operator-bundle:e2e bundle/v2.2
+	kind load docker-image crossplane-olm-operator-bundle:e2e --name e2e
+	@echo "Running bundle..."
+	operator-sdk run bundle crossplane-olm-operator-bundle:e2e --timeout 5m
+	@echo "E2E setup complete — apply a CrossplaneConfig CR to test."
+
+.PHONY: e2e-cleanup
+e2e-cleanup: ## Delete the KinD e2e cluster
+	kind delete cluster --name e2e
+
+##@ Sync
+
+.PHONY: sync-upstream
+sync-upstream: ## Sync upstream Crossplane Helm charts
+	bash hack/sync-upstream.sh
 
 ##@ Tool dependencies
 

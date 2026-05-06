@@ -32,13 +32,19 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-qemu-action@v3
 
-      # Placeholder: will build and push once Dockerfile is finalized
       - name: Build and push operator image
-        run: |
-          IMG="${REGISTRY}/${ORG}/crossplane-olm-operator:${GITHUB_REF_NAME}"
-          echo "TODO: docker buildx build --platform linux/amd64,linux/arm64 --push -t ${IMG} ."
-          echo "Would push: ${IMG}"
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.ORG }}/crossplane-olm-operator:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.ORG }}/crossplane-olm-operator:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   bundle-images:
     name: Build & Push Bundle Images
@@ -56,12 +62,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Placeholder: will build and push once bundle Dockerfiles exist
       - name: Build and push bundle image
         run: |
           BUNDLE_IMG="${REGISTRY}/${ORG}/crossplane-olm-operator-bundle:${{ matrix.version }}"
-          echo "TODO: docker build -f bundle/${{ matrix.version }}/bundle.Dockerfile -t ${BUNDLE_IMG} bundle/${{ matrix.version }}"
-          echo "Would push: ${BUNDLE_IMG}"
+          docker build -f bundle/${{ matrix.version }}/bundle.Dockerfile -t "${BUNDLE_IMG}" bundle/${{ matrix.version }}
+          docker push "${BUNDLE_IMG}"
 
   catalog-image:
     name: Build & Push Catalog Image
@@ -77,9 +82,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Placeholder: will build and push once catalog Dockerfile exists
+      - name: Install opm
+        run: |
+          export ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+          curl -sLo opm "https://github.com/operator-framework/operator-registry/releases/download/v1.52.0/linux-${ARCH}-opm"
+          chmod +x opm
+          sudo mv opm /usr/local/bin/
+
+      - name: Validate FBC catalog
+        run: opm validate catalog/
+
       - name: Build and push catalog image
         run: |
           CATALOG_IMG="${REGISTRY}/${ORG}/crossplane-olm-operator-catalog:${GITHUB_REF_NAME}"
-          echo "TODO: docker build -f catalog.Dockerfile -t ${CATALOG_IMG} ."
-          echo "Would push: ${CATALOG_IMG}"
+          CATALOG_LATEST="${REGISTRY}/${ORG}/crossplane-olm-operator-catalog:latest"
+          docker build -f catalog.Dockerfile -t "${CATALOG_IMG}" -t "${CATALOG_LATEST}" .
+          docker push "${CATALOG_IMG}"
+          docker push "${CATALOG_LATEST}"
