@@ -1,0 +1,28 @@
+name: Daily Upstream Sync
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    name: Sync Upstream Charts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Placeholder: will run hack/sync-upstream.sh once it is implemented
+      - name: Run upstream sync
+        run: |
+          echo "TODO: bash hack/sync-upstream.sh"
+          echo "This will check for new upstream Crossplane chart releases"
+          echo "for v2.0, v2.1, v2.2 and open a PR if changes are found."

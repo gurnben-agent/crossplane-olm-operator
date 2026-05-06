@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64.5
+
+  vet:
+    name: Vet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go vet ./...
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test -race -count=1 ./...
+
+  controller-gen-check:
+    name: Controller-gen Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make manifests generate
+      - name: Ensure generated files are committed
+        run: |
+          if ! git diff --quiet --exit-code; then
+            echo "::error::Generated files are out of date. Run 'make manifests generate' and commit the result."
+            git diff
+            exit 1
+          fi
+
+  bundle-validate:
+    name: Bundle Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Placeholder: bundle validation will be enabled once bundle manifests are generated
+      - name: Validate bundles
+        run: |
+          echo "TODO: operator-sdk bundle validate ./bundle/v2.0"
+          echo "TODO: operator-sdk bundle validate ./bundle/v2.1"
+          echo "TODO: operator-sdk bundle validate ./bundle/v2.2"
+
+  fbc-validate:
+    name: FBC Catalog Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Placeholder: FBC validation will be enabled once catalog manifests are generated
+      - name: Validate FBC catalog
+        run: |
+          echo "TODO: opm validate catalog/"

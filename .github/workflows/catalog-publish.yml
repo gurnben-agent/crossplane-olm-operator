@@ -1,0 +1,38 @@
+name: Publish Catalog
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "catalog/**"
+      - "bundle/**"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  ORG: gurnben-agent
+
+jobs:
+  publish-catalog:
+    name: Rebuild & Push FBC Catalog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Placeholder: will build and push once catalog Dockerfile and FBC manifests exist
+      - name: Build and push catalog image
+        run: |
+          CATALOG_IMG="${REGISTRY}/${ORG}/crossplane-olm-operator-catalog:latest"
+          echo "TODO: docker build -f catalog.Dockerfile -t ${CATALOG_IMG} ."
+          echo "TODO: docker push ${CATALOG_IMG}"
+          echo "Would push: ${CATALOG_IMG}"
