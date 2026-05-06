@@ -1,0 +1,34 @@
+{{- if .Values.rbacManager.deploy }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crossplane-rbac-manager
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: crossplane-rbac-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crossplane-rbac-manager
+  template:
+    metadata:
+      labels:
+        app: crossplane-rbac-manager
+    spec:
+      serviceAccountName: rbac-manager
+      containers:
+        - name: crossplane-rbac-manager
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          args:
+            - rbac
+            - start
+            - --manage={{ .Values.rbacManager.managementPolicy }}
+            {{- range .Values.rbacManager.args }}
+            - {{ . }}
+            {{- end }}
+          {{- with .Values.resourcesRBACManager }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

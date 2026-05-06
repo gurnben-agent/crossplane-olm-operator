@@ -1,0 +1,6 @@
+apiVersion: v2
+name: crossplane
+description: Crossplane is an open source Kubernetes add-on that transforms your cluster into a universal control plane.
+type: application
+version: 2.1.0
+appVersion: "v2.1.0"

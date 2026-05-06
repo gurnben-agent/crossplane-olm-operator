@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crossplane
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: crossplane
+    app.kubernetes.io/name: crossplane
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: crossplane
+  template:
+    metadata:
+      labels:
+        app: crossplane
+    spec:
+      {{- if .Values.runtimeClassName }}
+      runtimeClassName: {{ .Values.runtimeClassName }}
+      {{- end }}
+      serviceAccountName: {{ default "crossplane" .Values.serviceAccount.name }}
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.imagePullSecrets }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: crossplane
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            {{- range .Values.args }}
+            - {{ . }}
+            {{- end }}
+          {{- with .Values.resourcesCrossplane }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

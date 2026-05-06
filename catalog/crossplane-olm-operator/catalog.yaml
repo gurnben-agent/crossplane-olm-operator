@@ -1,0 +1,43 @@
+---
+schema: olm.package
+name: crossplane-olm-operator
+defaultChannel: stable-v2.2
+
+---
+schema: olm.channel
+name: stable-v2.0
+package: crossplane-olm-operator
+entries:
+  - name: crossplane-olm-operator.v2.0.0
+
+---
+schema: olm.channel
+name: stable-v2.1
+package: crossplane-olm-operator
+entries:
+  - name: crossplane-olm-operator.v2.1.0
+
+---
+schema: olm.channel
+name: stable-v2.2
+package: crossplane-olm-operator
+entries:
+  - name: crossplane-olm-operator.v2.2.0
+
+---
+schema: olm.bundle
+name: crossplane-olm-operator.v2.0.0
+package: crossplane-olm-operator
+image: ghcr.io/gurnben-agent/crossplane-olm-operator-bundle:v2.0.0
+
+---
+schema: olm.bundle
+name: crossplane-olm-operator.v2.1.0
+package: crossplane-olm-operator
+image: ghcr.io/gurnben-agent/crossplane-olm-operator-bundle:v2.1.0
+
+---
+schema: olm.bundle
+name: crossplane-olm-operator.v2.2.0
+package: crossplane-olm-operator
+image: ghcr.io/gurnben-agent/crossplane-olm-operator-bundle:v2.2.0

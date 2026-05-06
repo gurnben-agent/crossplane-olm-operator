@@ -1,0 +1,45 @@
+replicas: 1
+
+image:
+  repository: xpkg.crossplane.io/crossplane/crossplane
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  name: ""
+
+rbacManager:
+  deploy: true
+  managementPolicy: "All"
+  args: []
+  resources: {}
+
+args: []
+
+provider:
+  packages: []
+
+packageCache:
+  medium: ""
+  sizeLimit: "20Mi"
+  pvc: ""
+
+functionCache:
+  medium: ""
+  sizeLimit: "10Mi"
+
+webhooks:
+  enabled: true
+
+resourcesCrossplane: {}
+resourcesRBACManager: {}
+
+metrics:
+  enabled: true
+
+registryUrl: "xpkg.crossplane.io"
+
+runtimeClassName: ""
