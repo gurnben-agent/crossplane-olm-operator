@@ -1,0 +1,19 @@
+domain: crossplane.io
+layout:
+- go.kubebuilder.io/v4
+projectName: crossplane-olm-operator
+repo: github.com/gurnben-agent/crossplane-olm-operator
+version: "3"
+resources:
+- api:
+    crdVersion: v1
+    namespaced: false
+  controller: true
+  domain: crossplane.io
+  group: crossplane
+  kind: CrossplaneConfig
+  path: github.com/gurnben-agent/crossplane-olm-operator/api/v1alpha1
+  version: v1alpha1
+  webhooks:
+    validation: true
+    webhookVersion: v1

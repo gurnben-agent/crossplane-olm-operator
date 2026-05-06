@@ -1,0 +1,34 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gocyclo
+    - gofmt
+    - goimports
+    - misspell
+    - unconvert
+    - unparam
+    - prealloc
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  misspell:
+    locale: US
+  goimports:
+    local-prefixes: github.com/gurnben-agent/crossplane-olm-operator
+
+issues:
+  exclude-dirs:
+    - bin
+    - bundle
+    - catalog
+    - charts
+  max-issues-per-linter: 0
+  max-same-issues: 0
