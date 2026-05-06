@@ -2,7 +2,11 @@ package controller
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"sort"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -135,6 +139,7 @@ func (r *CrossplaneConfigReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
+	config.Status.HelmReleaseDigest = computeManifestDigest(objects)
 	config.Status.ObservedVersion = config.Spec.Version
 	config.Status.ObservedGeneration = config.Generation
 	r.setCondition(&config, crossplanev1alpha1.ConditionTypeReady, metav1.ConditionTrue,
@@ -160,16 +165,14 @@ func (r *CrossplaneConfigReconciler) reconcileDelete(ctx context.Context, config
 
 	renderer, err := r.VersionRegistry.Lookup(config.Spec.Version)
 	if err != nil {
-		logger.Error(err, "version lookup failed during deletion, removing finalizer anyway")
-		controllerutil.RemoveFinalizer(config, finalizerName)
-		return ctrl.Result{}, r.Update(ctx, config)
+		logger.Error(err, "version lookup failed during deletion, requeuing")
+		return ctrl.Result{}, err
 	}
 
 	objects, _, err := renderer.Render(&config.Spec)
 	if err != nil {
-		logger.Error(err, "render failed during deletion, removing finalizer anyway")
-		controllerutil.RemoveFinalizer(config, finalizerName)
-		return ctrl.Result{}, r.Update(ctx, config)
+		logger.Error(err, "render failed during deletion, requeuing")
+		return ctrl.Result{}, err
 	}
 
 	if err := r.Applier.Delete(ctx, objects); err != nil {
@@ -200,6 +203,22 @@ func formatIgnoredFields(fields []IgnoredField) string {
 		msg += fmt.Sprintf("%s: %s", f.Field, f.Reason)
 	}
 	return msg
+}
+
+func computeManifestDigest(objects []unstructured.Unstructured) string {
+	sorted := make([]unstructured.Unstructured, len(objects))
+	copy(sorted, objects)
+	sort.Slice(sorted, func(i, j int) bool {
+		ki := sorted[i].GetAPIVersion() + "/" + sorted[i].GetKind() + "/" + sorted[i].GetNamespace() + "/" + sorted[i].GetName()
+		kj := sorted[j].GetAPIVersion() + "/" + sorted[j].GetKind() + "/" + sorted[j].GetNamespace() + "/" + sorted[j].GetName()
+		return ki < kj
+	})
+	h := sha256.New()
+	for _, obj := range sorted {
+		data, _ := json.Marshal(obj.Object)
+		h.Write(data)
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func (r *CrossplaneConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {

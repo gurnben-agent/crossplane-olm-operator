@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,6 +73,30 @@ func TestValidateDelete_AlwaysAllowed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("delete should always be allowed, got: %v", err)
 	}
+}
+
+func TestValidateCreate_ListError(t *testing.T) {
+	v := &CrossplaneConfigValidator{Client: &errorReader{}}
+
+	obj := &CrossplaneConfig{
+		ObjectMeta: metav1.ObjectMeta{Name: "crossplane"},
+		Spec:       CrossplaneConfigSpec{Version: "v2.1"},
+	}
+
+	_, err := v.ValidateCreate(context.Background(), obj)
+	if err == nil {
+		t.Fatal("expected error when client.List fails")
+	}
+}
+
+type errorReader struct{}
+
+func (e *errorReader) Get(_ context.Context, _ client.ObjectKey, _ client.Object, _ ...client.GetOption) error {
+	return fmt.Errorf("get error")
+}
+
+func (e *errorReader) List(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
+	return fmt.Errorf("list error")
 }
 
 // Ensure CrossplaneConfigValidator satisfies the client.Reader-based pattern.

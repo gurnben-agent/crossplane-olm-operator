@@ -15,6 +15,8 @@ import (
 
 	crossplanev1alpha1 "github.com/gurnben-agent/crossplane-olm-operator/api/v1alpha1"
 	"github.com/gurnben-agent/crossplane-olm-operator/internal/controller"
+	"github.com/gurnben-agent/crossplane-olm-operator/internal/helm"
+	"github.com/gurnben-agent/crossplane-olm-operator/internal/version"
 )
 
 var scheme = runtime.NewScheme()
@@ -58,12 +60,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO: Wire real VersionRegistry and ManifestApplier implementations (Phase 2, Agent B).
 	if err = (&controller.CrossplaneConfigReconciler{
 		Client:          mgr.GetClient(),
 		Scheme:          mgr.GetScheme(),
-		VersionRegistry: nil,
-		Applier:         nil,
+		VersionRegistry: version.NewRegistry(),
+		Applier:         helm.NewSSAApplier(mgr.GetClient()),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CrossplaneConfig")
 		os.Exit(1)

@@ -27,6 +27,16 @@ func MapV2_0(spec *crossplanev1alpha1.CrossplaneConfigSpec) (map[string]interfac
 		values["registryUrl"] = spec.Registry.DefaultRegistry
 	}
 
+	if len(spec.DefaultActivations) > 0 {
+		values["provider"] = map[string]interface{}{
+			"defaultActivations": spec.DefaultActivations,
+		}
+	}
+
+	if spec.Registry.Mirror != "" {
+		values["registryMirror"] = spec.Registry.Mirror
+	}
+
 	mapCommonValues(spec, values)
 	mapRBACManager(spec, values, "--max-reconcile-rate")
 
@@ -170,5 +180,6 @@ func mapRBACManager(spec *crossplanev1alpha1.CrossplaneConfigSpec, values map[st
 		"deploy": true,
 	}
 	rbac["resources"] = resourceRequirementsToMap(spec.Resources.RBACManager)
+	rbac["args"] = []string{reconcileRateFlag + "=10"}
 	values["rbacManager"] = rbac
 }

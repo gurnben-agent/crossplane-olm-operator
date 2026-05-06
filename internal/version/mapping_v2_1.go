@@ -27,6 +27,16 @@ func MapV2_1(spec *crossplanev1alpha1.CrossplaneConfigSpec) (map[string]interfac
 		values["registryUrl"] = spec.Registry.DefaultRegistry
 	}
 
+	if len(spec.DefaultActivations) > 0 {
+		values["provider"] = map[string]interface{}{
+			"defaultActivations": spec.DefaultActivations,
+		}
+	}
+
+	if spec.Registry.Mirror != "" {
+		values["registryMirror"] = spec.Registry.Mirror
+	}
+
 	mapCommonValues(spec, values)
 	mapRBACManager(spec, values, "--max-concurrent-reconciles")
 

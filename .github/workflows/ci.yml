@@ -134,7 +134,7 @@ jobs:
       - name: Create CrossplaneConfig CR
         run: |
           kubectl apply -f - <<'EOF'
-          apiVersion: crossplane.io/v1alpha1
+          apiVersion: crossplane.crossplane.io/v1alpha1
           kind: CrossplaneConfig
           metadata:
             name: crossplane
